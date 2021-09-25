@@ -6,8 +6,8 @@
 ETrace is a syscall tracing utility powered by eBPF.
 
 This is (yet another) `strace` implementation with a twist:
-- ETrace figures out dynamically the parameters of each syscall by parsing the tracepoint format in the `/sys/kernel/debug/tracing/events/syscalls/*` directories
-- Then, ETrace fetches dynamically the size of each structure of each syscall parameter by parsing the BTF information of the kernel. Once the data is retrieved from kernel space, it uses the same BTF information to parse and format the captured data.
+- ETrace figures out dynamically the parameters of each syscall by parsing the tracepoint format files in the `/sys/kernel/debug/tracing/events/syscalls/*` directories
+- ETrace fetches dynamically the size of each structure of each syscall parameter by parsing the BTF information of the kernel. Once the data is retrieved from kernel space, it uses the same BTF information to parse and format the captured data.
 
 In addition to normal syscall parameters, ETrace also collects process context data on each syscall entry and exit. This context includes:
 - The process cgroups
@@ -17,7 +17,7 @@ In addition to normal syscall parameters, ETrace also collects process context d
 
 ### System requirements
 
-This project was developed on an Ubuntu Hirsute machine (Linux Kernel 5.11).
+This project was developed on a Ubuntu Hirsute machine (Linux Kernel 5.11).
 
 - golang 1.16+
 - Kernel headers are expected to be installed in `lib/modules/$(uname -r)`, update the `Makefile` with their location otherwise.
@@ -58,7 +58,7 @@ Flags:
       --input string          input file to parse data from
       --json                  parse and dump the data retrieved from kernel space in the JSON format. This option might lead to more lost events than the --raw option and more CPU usage
   -l, --log-level string      log level, options: panic, fatal, error, warn, info, debug or trace (default "info")
-      --raw                   dump the data retrieved from kernel space without parsing it, use this option instead of the --json option to reduce the amount of lost events. You can ask ETrace to parse a raw dump using the --input option
+      --raw                   dump the data retrieved from kernel space without parsing it, use this option instead of the --json option to reduce the amount of lost events, and reduce the CPU usage of ETrace. You can ask ETrace to parse a --raw dump using the --input option
       --stats                 show syscall statistics (default true)
       --stdout                parse and dump the data retrieved from kernel space to the console. This option might lead to more lost events than the --raw option and more CPU usage.
   -s, --syscall stringArray   list of syscalls to filter, leave empty to capture everything
