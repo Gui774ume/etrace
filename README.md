@@ -69,7 +69,7 @@ Flags:
 #### Dump all the syscalls of the command `cat /etc/hosts`
 
 ```shell script
-# ~ sudo etrace --comm cat
+# ~ sudo etrace --comm cat --stdout
 INFO[2021-09-25T21:54:11Z] Tracing started ... (Ctrl + C to stop)
 cat(10609) | SysBrk(unsigned long brk: 0) = 93940710199296
 cat(10609) | SysArchPrctl(int option: 12289, unsigned long arg2: 140727494090368) = -22
