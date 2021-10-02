@@ -20,8 +20,11 @@ In addition to normal syscall parameters, ETrace also collects process context d
 This project was developed on a Ubuntu Hirsute machine (Linux Kernel 5.11).
 
 - golang 1.16+
-- Kernel headers are expected to be installed in `lib/modules/$(uname -r)`, update the `Makefile` with their location otherwise.
-- clang & llvm 11.0.1+
+- (optional) Kernel headers are expected to be installed in `lib/modules/$(uname -r)`, update the `Makefile` with their location otherwise.
+- (optional) clang & llvm 11.0.1+
+- (optional) libbpf-dev
+
+Optional fields are required to recompile the eBPF programs.
 
 ### Build
 
