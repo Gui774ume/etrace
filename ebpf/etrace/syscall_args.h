@@ -41,10 +41,11 @@ __attribute__((always_inline)) struct syscall_definition *lookup_definition(u32 
 }
 
 __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, struct syscall_definition *def, struct syscall_buffer *buf) {
-    u64 *arg_tmp = 0;
     u64 arg = 0;
+    u64 *array_cursor = 0;
     u64 size = 0;
     int copy_ret = 0;
+    int ret = 0;
 
     #pragma unroll
     for (int i = 0; i < 6; i++) {
@@ -52,6 +53,7 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
             goto exit;
         }
 
+        array_cursor = 0;
         arg = (u64) cache->args[i];
 
         // handle dereferences
@@ -60,8 +62,8 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
                 // null pointer can't be dereferenced, move on
                 goto exit;
             }
-            arg_tmp = (u64 *)arg;
-            bpf_probe_read_user(&arg, sizeof(arg), arg_tmp);
+            array_cursor = (u64 *)arg;
+            bpf_probe_read_user(&arg, sizeof(arg), array_cursor);
         }
         // arg is now either a pointer to a value, or the value itself
 
@@ -102,25 +104,44 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
             size = MAX_DATA_PER_ARG;
         }
 
-        // copy value
-        if (def->args[i].dereference_count == 1 || def->args[i].dereference_count == 2) {
-            // arg is a pointer to the value
-            if (def->args[i].dynamic_size_resolution_type == DYNAMIC_SIZE_RESOLUTION_TYPE_TRAILING_ZERO) {
-                copy_ret = bpf_probe_read_user_str(&buf->args[(buf->cursor + 4) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], MAX_DATA_PER_ARG, (void *)arg);
+        copy_ret = 0;
+        ret = 0;
+
+        for (int j = 0; j < 200; j++) {
+            // copy value
+            if (def->args[i].dereference_count == 1 || def->args[i].dereference_count == 2) {
+                // arg is a pointer to the value
+                if (def->args[i].dynamic_size_resolution_type == DYNAMIC_SIZE_RESOLUTION_TYPE_TRAILING_ZERO) {
+                    ret = bpf_probe_read_user_str(&buf->args[(buf->cursor + 4 + copy_ret) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], MAX_DATA_PER_ARG, (void *)arg);
+                    if (ret > 0) {
+                        copy_ret += ret;
+                    }
+                } else {
+                    ret = bpf_probe_read_user(&buf->args[(buf->cursor + 4 + copy_ret) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], size, (void *)arg);
+                    if (ret == 0) {
+                        copy_ret += size;
+                    }
+                }
             } else {
-                copy_ret = bpf_probe_read_user(&buf->args[(buf->cursor + 4) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], size, (void *)arg);
-                if (copy_ret == 0) {
-                    copy_ret = size;
+                // arg is the value itself
+                ret = bpf_probe_read_kernel(&buf->args[(buf->cursor + 4 + copy_ret) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], size, &arg);
+                if (ret == 0) {
+                    copy_ret += size;
                 }
             }
-        } else {
-            // arg is the value itself
-            copy_ret = bpf_probe_read_kernel(&buf->args[(buf->cursor + 4) & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], size, &arg);
-            if (copy_ret == 0) {
-                copy_ret = size;
+
+            if (copy_ret >= MAX_DATA_PER_ARG - 2 || def->args[i].dereference_count != 2) {
+                goto write_length;
+            }
+
+            array_cursor++;
+            bpf_probe_read_user(&arg, sizeof(arg), array_cursor);
+            if (arg == 0) {
+                goto write_length;
             }
         }
 
+write_length:
         bpf_probe_read(&buf->args[buf->cursor & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], sizeof(int), &copy_ret);
         if (copy_ret > 0) {
             buf->cursor += copy_ret + 4;

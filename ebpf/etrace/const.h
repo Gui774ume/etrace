@@ -8,6 +8,8 @@
 #ifndef _CONST_H_
 #define _CONST_H_
 
+#define SYSCALL_EXECVE 59
+
 #define LOAD_CONSTANT(param, var) asm("%0 = " param " ll" : "=r"(var))
 
 __attribute__((always_inline)) static u64 load_etrace_tgid() {
