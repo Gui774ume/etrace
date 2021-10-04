@@ -22,7 +22,7 @@ import (
 
 const (
 	// MaxDataPerArg is the maximum data length collected per argument
-	MaxDataPerArg = 512
+	MaxDataPerArg = 1024
 )
 
 // Options contains the parameters of ETrace

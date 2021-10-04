@@ -9,7 +9,7 @@
 #define _EVENT_H_
 
 #define MAX_DATA_PER_SYSCALL 4608
-#define MAX_DATA_PER_ARG 512
+#define MAX_DATA_PER_ARG 1024
 
 struct syscall_event {
     u32 nr;
@@ -28,14 +28,38 @@ struct syscall_buffer {
     u16 cursor;
 };
 
+struct syscall_buffer syscall_buffer_zero = {};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u64);
+	__type(value, struct syscall_buffer);
+	__uint(max_entries, 512);
+} syscall_buffer_cache SEC(".maps");
+
+__attribute__((always_inline)) struct syscall_buffer *reset_syscall_buffer_cache(u64 id) {
+    int ret = bpf_map_update_elem(&syscall_buffer_cache, &id, &syscall_cache_zero, BPF_ANY);
+    if (ret < 0) {
+        // should never happen
+        return 0;
+    }
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) struct syscall_buffer *get_syscall_buffer_cache(u64 id) {
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) int delete_syscall_buffer_cache(u64 id) {
+    return bpf_map_delete_elem(&syscall_buffer_cache, &id);
+}
+
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
 	__type(key, u32);
 	__type(value, struct syscall_buffer);
 	__uint(max_entries, 1);
 } syscall_buffer_gen SEC(".maps");
-
-struct syscall_buffer syscall_buffer_zero = {};
 
 __attribute__((always_inline)) struct syscall_buffer *new_syscall_buffer() {
     u32 key = 0;

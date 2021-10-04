@@ -60,11 +60,7 @@ struct {
 
 struct syscall_cache syscall_cache_zero = {};
 
-__attribute__((always_inline)) struct syscall_cache *reset_syscall_cache(u64 id, u32 nr) {
-    if (is_syscall_ignored(nr)) {
-        return 0;
-    }
-
+__attribute__((always_inline)) struct syscall_cache *reset_syscall_cache(u64 id) {
     int ret = bpf_map_update_elem(&syscall_cache, &id, &syscall_cache_zero, BPF_ANY);
     if (ret < 0) {
         // should never happen

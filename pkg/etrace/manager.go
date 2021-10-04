@@ -46,6 +46,12 @@ func (e *ETrace) prepareManager() {
 					EBPFFuncName: "sys_exit",
 				},
 			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFSection:  "kprobe/security_bprm_check",
+					EBPFFuncName: "kprobe_security_bprm_check",
+				},
+			},
 		},
 	}
 	e.managerOptions = manager.Options{

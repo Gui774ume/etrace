@@ -452,6 +452,7 @@ func (se *SyscallEvent) unmarshalBinary(data []byte, read int, e *ETrace) error 
 
 	// parse arguments
 	se.ArgsRaw = data[cursor:]
+
 	var size int
 	for i := 0; i < 6; i++ {
 		if len(data[cursor:]) < 4 {
@@ -459,6 +460,9 @@ func (se *SyscallEvent) unmarshalBinary(data []byte, read int, e *ETrace) error 
 		}
 		size = int(int32(ByteOrder.Uint32(data[cursor : cursor+4])))
 		cursor += 4
+		if cursor+size > len(data) {
+			size = len(data) - cursor
+		}
 		if size > 0 {
 			se.Args[i].data = make([]byte, size)
 			copy(se.Args[i].data[:], data[cursor:cursor+size])
