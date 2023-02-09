@@ -349,9 +349,6 @@ func newParsedSyscallArgumentValue(t btf.Type, data []byte, sav *SyscallArgument
 		r := t.(*btf.Restrict)
 		output = newParsedSyscallArgumentValue(r.Type, data, nil)
 	default:
-		if sav == nil {
-			panic(fmt.Sprintf("unknown type: %v", reflect.TypeOf(t)))
-		}
 		output.Size = len(data)
 		if output.Size > 0 {
 			output.Data = data
