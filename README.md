@@ -122,6 +122,44 @@ cat(10609) | SysClose(unsigned int fd: 1) = 0
 cat(10609) | SysClose(unsigned int fd: 2) = 0
 ```
 
+#### Dump all the syscalls of the postgres process to a JSON file
+
+```shell script
+# ~ sudo etrace --comm postgres --json
+INFO[2021-09-25T21:54:11Z] Tracing started ... (Ctrl + C to stop)
+INFO[2023-02-25T19:59:32Z] output file: /tmp/etrace-225206860.json
+^C
+INFO[2023-02-25T19:59:38Z]                                              
+INFO[2023-02-25T19:59:38Z]             Syscall Name		|		Sent		|		Lost   
+INFO[2023-02-25T19:59:38Z]                 SysClose		|		10		|		5         
+INFO[2023-02-25T19:59:38Z]              SysEpollCtl		|		20		|		5         
+INFO[2023-02-25T19:59:38Z]          SysEpollCreate1		|		1		|		0         
+INFO[2023-02-25T19:59:38Z]                                              
+INFO[2023-02-25T19:59:38Z] Total events: 31
+INFO[2023-02-25T19:59:38Z] Total lost: 10
+```
+
+If you see too many lost events, you can switch to the `raw` output format and then ask `etrace` to deserialize the `raw` file to `json`.
+See the command below for an example.
+
+```shell script
+# ~ sudo etrace --comm postgres --raw
+INFO[2021-09-25T21:54:11Z] Tracing started ... (Ctrl + C to stop)
+INFO[2023-02-25T19:59:32Z] output file: /tmp/etrace-950342369.raw
+^C
+INFO[2023-02-25T19:59:38Z]                                              
+INFO[2023-02-25T19:59:38Z]             Syscall Name		|		Sent		|		Lost   
+INFO[2023-02-25T19:59:38Z]                 SysClose		|		11		|		0         
+INFO[2023-02-25T19:59:38Z]              SysEpollCtl		|		22		|		0         
+INFO[2023-02-25T19:59:38Z]          SysEpollCreate1		|		11		|		0         
+INFO[2023-02-25T19:59:38Z]                                              
+INFO[2023-02-25T19:59:38Z] Total events: 44
+INFO[2023-02-25T19:59:38Z] Total lost: 0
+# ~ sudo etrace --input /tmp/etrace-950342369.raw --json
+INFO[2023-02-25T20:02:35Z] Parsing /tmp/etrace-950342369.raw ...
+INFO[2023-02-25T20:02:46Z] done ! Output file: /tmp/etrace-801484115.json
+```
+
 ## License
 
 - The golang code is under Apache 2.0 License.
