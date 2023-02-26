@@ -12,7 +12,7 @@ require (
 	github.com/shuLhan/go-bindata v4.0.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.1
-	golang.org/x/sys v0.0.0-20210921065528-437939a70204
+	golang.org/x/sys v0.5.0
 	golang.org/x/tools v0.1.5
 )
 
@@ -35,6 +35,6 @@ require (
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )
