@@ -34,7 +34,7 @@ Optional fields are required to recompile the eBPF programs.
 # ~ make build-ebpf
 ```
 
-2) To build ETrace, run:
+2) To build ETrace and the custom handler demo, run:
 
 ```shell script
 # ~ make build
@@ -158,6 +158,109 @@ INFO[2023-02-25T19:59:38Z] Total lost: 0
 # ~ sudo etrace --input /tmp/etrace-950342369.raw --json
 INFO[2023-02-25T20:02:35Z] Parsing /tmp/etrace-950342369.raw ...
 INFO[2023-02-25T20:02:46Z] done ! Output file: /tmp/etrace-801484115.json
+```
+
+### Integrate ETrace into your projects by leveraging the custom handler option
+
+The script below showcases how you can import ETrace into your projects and stream the kernel events directly to your own handler.
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/etrace/pkg/etrace"
+)
+
+// et is the global etrace tracer
+var et *etrace.ETrace
+
+// eventZero is used to reset the event used for parsing in a memory efficient way
+var eventZero = etrace.NewSyscallEvent()
+
+// event is used to parse events
+var event = etrace.NewSyscallEvent()
+
+// zeroEvent provides an empty event
+func zeroEvent() {
+	*event = *eventZero
+}
+
+func main() {
+	// Set log level
+	logrus.SetLevel(logrus.TraceLevel)
+
+	// create a new ETrace instance
+	var err error
+	et, err = etrace.NewETrace(etrace.Options{
+		EventHandler: myCustomEventHandler,
+	})
+	if err != nil {
+		logrus.Errorf("couldn't instantiate etrace: %v\n", err)
+		return
+	}
+
+	// start ETrace
+	if err = et.Start(); err != nil {
+		logrus.Errorf("couldn't start etrace: %v\n", err)
+		return
+	}
+	logrus.Infoln("Tracing started ... (Ctrl + C to stop)\n")
+
+	wait()
+
+	if err = et.Stop(); err != nil {
+		logrus.Errorf("couldn't stop etrace: %v\n", err)
+	}
+}
+
+// wait stops the main goroutine until an interrupt or kill signal is sent
+func wait() {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, os.Kill)
+	<-sig
+	fmt.Println()
+}
+
+func myCustomEventHandler(data []byte) {
+	// reset event
+	zeroEvent()
+
+	// parse syscall type
+	read, err := event.Syscall.UnmarshalSyscall(data)
+	if err != nil {
+		logrus.Errorf("failed to decode syscall type: %v", err)
+		return
+	}
+
+	// find arguments definition
+	syscallDefinition, ok := et.SyscallDefinitions[event.Syscall]
+	if ok {
+		for i := range syscallDefinition.Arguments {
+			event.Args[i] = etrace.SyscallArgumentValue{
+				Argument: &syscallDefinition.Arguments[i],
+			}
+		}
+	} else {
+		logrus.Errorf("couldn't find the syscall definition of %s", event.Syscall)
+		return
+	}
+
+	// parse the binary data according to the syscall definition
+	err = event.UnmarshalBinary(data, read, et)
+	if err != nil {
+		logrus.Errorf("failed to decode event: %v", err)
+		return
+	}
+
+	// print the output to the screen
+	fmt.Printf("%s\n", event.String(50))
+}
 ```
 
 ## License

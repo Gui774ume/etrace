@@ -44,7 +44,7 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
     u64 arg = 0;
     u64 *array_cursor = 0;
     u64 size = 0;
-    int copy_ret = 0;
+    u32 copy_ret = 0;
     int ret = 0;
 
     #pragma unroll
@@ -130,7 +130,7 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
                 }
             }
 
-            if (copy_ret >= MAX_DATA_PER_ARG - 2 || def->args[i].dereference_count != 2) {
+            if (copy_ret >= (MAX_DATA_PER_ARG - 2) || def->args[i].dereference_count != 2) {
                 goto write_length;
             }
 
@@ -142,7 +142,7 @@ __attribute__((always_inline)) int resolve_args(struct syscall_cache *cache, str
         }
 
 write_length:
-        bpf_probe_read(&buf->args[buf->cursor & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], sizeof(int), &copy_ret);
+        bpf_probe_read(&buf->args[buf->cursor & (MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1)], sizeof(u32), &copy_ret);
         if (copy_ret > 0) {
             buf->cursor += copy_ret + 4;
         } else {

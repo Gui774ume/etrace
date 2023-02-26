@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/Gui774ume/etrace/internal/btf"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -42,7 +40,7 @@ type CgroupContext struct {
 
 func (cc *CgroupContext) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 8+CgroupNameLength {
-		return 0, errors.Wrapf(ErrNotEnoughData, "parsing CgroupContext, got len %d, needed %d", len(data), 8+CgroupNameLength)
+		return 0, fmt.Errorf("parsing CgroupContext, got len %d, needed %d: %w", len(data), 8+CgroupNameLength, ErrNotEnoughData)
 	}
 	cc.SubsystemID = ByteOrder.Uint32(data[0:4])
 	cc.StateID = ByteOrder.Uint32(data[4:8])
@@ -69,7 +67,7 @@ type CredentialsContext struct {
 
 func (cc *CredentialsContext) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 80 {
-		return 0, errors.Wrapf(ErrNotEnoughData, "parsing CredentialsContext, got len %d, needed 80", len(data))
+		return 0, fmt.Errorf("parsing CredentialsContext, got len %d, needed 80: %w", len(data), ErrNotEnoughData)
 	}
 	cc.UID = ByteOrder.Uint32(data[:4])
 	cc.GID = ByteOrder.Uint32(data[4:8])
@@ -102,7 +100,7 @@ type NamespaceContext struct {
 
 func (nc *NamespaceContext) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 32 {
-		return 0, errors.Wrapf(ErrNotEnoughData, "parsing NamespaceContext, got len %d, needed 32", len(data))
+		return 0, fmt.Errorf("parsing NamespaceContext, got len %d, needed 32: %w", len(data), ErrNotEnoughData)
 	}
 	nc.CgroupNamespace = ByteOrder.Uint32(data[:4])
 	nc.IPCNamespace = ByteOrder.Uint32(data[4:8])
@@ -139,7 +137,7 @@ func (pc *ProcessContext) UnmarshalBinary(data []byte) (int, error) {
 	cursor += read
 
 	if len(data[cursor:]) < TaskCommLength {
-		return 0, errors.Wrapf(err, "parsing ProcessContext.Comm: got len %d, needed %d", len(data[cursor:]), TaskCommLength)
+		return 0, fmt.Errorf("parsing ProcessContext.Comm: got len %d, needed %d: %w", len(data[cursor:]), TaskCommLength, ErrNotEnoughData)
 	}
 	pc.Comm = string(bytes.Trim(data[cursor:cursor+TaskCommLength], "\x00"))
 	cursor += TaskCommLength
@@ -166,7 +164,7 @@ type ParsedSyscallArgumentValue struct {
 func (psav ParsedSyscallArgumentValue) String(name string, sav *SyscallArgumentValue, bytesShown int) string {
 	t := psav.Type
 	if sav != nil {
-		t = sav.argument.Definition
+		t = sav.Argument.Definition
 	}
 	output := fmt.Sprintf("%s %s: ", t, name)
 	if psav.ParsedData != nil {
@@ -197,9 +195,9 @@ func (psav ParsedSyscallArgumentValue) String(name string, sav *SyscallArgumentV
 }
 
 type SyscallArgumentValue struct {
-	argument   *SyscallArgument
-	parsedData *ParsedSyscallArgumentValue
-	data       []byte
+	Argument   *SyscallArgument
+	ParsedData *ParsedSyscallArgumentValue
+	Data       []byte
 }
 
 func parseInt(data []byte, isSigned bool) interface{} {
@@ -357,18 +355,18 @@ func newParsedSyscallArgumentValue(t btf.Type, data []byte, sav *SyscallArgument
 
 	// override type and typename if this is the top level entry
 	if sav != nil {
-		output.Type = sav.argument.Definition
+		output.Type = sav.Argument.Definition
 	}
 
 	return output
 }
 
 func (sav SyscallArgumentValue) Parse() *ParsedSyscallArgumentValue {
-	if sav.parsedData == nil {
-		parsedValue := newParsedSyscallArgumentValue(sav.argument.BTFType, sav.data, &sav)
-		sav.parsedData = &parsedValue
+	if sav.ParsedData == nil {
+		parsedValue := newParsedSyscallArgumentValue(sav.Argument.BTFType, sav.Data, &sav)
+		sav.ParsedData = &parsedValue
 	}
-	return sav.parsedData
+	return sav.ParsedData
 }
 
 func (sav SyscallArgumentValue) MarshalJSON() ([]byte, error) {
@@ -380,9 +378,9 @@ type SyscallArgumentsList [6]SyscallArgumentValue
 func (sal SyscallArgumentsList) MarshalJSON() ([]byte, error) {
 	var output []map[string]SyscallArgumentValue
 	for _, arg := range sal {
-		if arg.argument != nil {
+		if arg.Argument != nil {
 			output = append(output, map[string]SyscallArgumentValue{
-				arg.argument.Name: arg,
+				arg.Argument.Name: arg,
 			})
 		}
 	}
@@ -392,11 +390,11 @@ func (sal SyscallArgumentsList) MarshalJSON() ([]byte, error) {
 func (sal SyscallArgumentsList) String(bytesShown int) string {
 	var output string
 	for i, arg := range sal {
-		if arg.argument != nil {
+		if arg.Argument != nil {
 			if i >= 1 {
 				output += ", "
 			}
-			output += arg.Parse().String(arg.argument.Name, &arg, bytesShown)
+			output += arg.Parse().String(arg.Argument.Name, &arg, bytesShown)
 		}
 	}
 	return output
@@ -415,18 +413,26 @@ type SyscallEvent struct {
 	ArgsRaw []byte               `json:"args_raw"`
 }
 
+// NewSyscallEvent returns a pointer to an initialized SyscallEvent
+func NewSyscallEvent() *SyscallEvent {
+	return &SyscallEvent{
+		Args: SyscallArgumentsList{},
+	}
+}
+
 func (se *SyscallEvent) String(bytesShown int) string {
 	return fmt.Sprintf("%s(%d) | %s(%s) = %d", se.EntryProcessContext.Comm, se.TID, se.Syscall, se.Args.String(bytesShown), int64(se.Ret))
 }
 
 // var brokenSyscalls = make(map[Syscall]int)
 
-func (se *SyscallEvent) unmarshalBinary(data []byte, read int, e *ETrace) error {
+// UnmarshalBinary unmarshals the binary representation of SyscallEvent
+func (se *SyscallEvent) UnmarshalBinary(data []byte, read int, e *ETrace) error {
 	var err error
 	cursor := read
 
 	if len(data[cursor:]) < 28 {
-		return errors.Wrapf(err, "parsing Ret, Timestamp, PID and TID: got len %d, needed 28", len(data[cursor:]))
+		return fmt.Errorf("parsing Ret, Timestamp, PID and TID: got len %d, needed 28: %w", len(data[cursor:]), err)
 	}
 	se.PID = ByteOrder.Uint32(data[cursor : cursor+4])
 	se.TID = ByteOrder.Uint32(data[cursor+4 : cursor+8])
@@ -458,11 +464,16 @@ func (se *SyscallEvent) unmarshalBinary(data []byte, read int, e *ETrace) error 
 		size = int(int32(ByteOrder.Uint32(data[cursor : cursor+4])))
 		cursor += 4
 		if cursor+size > len(data) {
-			size = len(data) - cursor
+			// This shouldn't happen, if it does, this is a bug: the size of the argument as parsed by the kernel doesn't
+			// match what we retrieved from kernel space. Last time this happened it was because MAX_DATA_PER_SYSCALL and
+			// MAX_DATA_PER_ARG weren't properly set so that MAX_DATA_PER_SYSCALL - MAX_DATA_PER_ARG - 1 could be written
+			// as (2^k - 1).
+			// Stop parsing, the argument is incomplete
+			return fmt.Errorf("couldn't parse argument %d of syscall %s: invalid payload length, expected at least %d bytes left, got %d left", i, se.Syscall.String(), cursor+size, len(data))
 		}
 		if size > 0 {
-			se.Args[i].data = make([]byte, size)
-			copy(se.Args[i].data[:], data[cursor:cursor+size])
+			se.Args[i].Data = make([]byte, size)
+			copy(se.Args[i].Data[:], data[cursor:cursor+size])
 			cursor += size
 			_ = se.Args[i].Parse()
 		} else {

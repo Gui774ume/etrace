@@ -27,18 +27,19 @@ const (
 
 // Options contains the parameters of ETrace
 type Options struct {
-	RawDump        bool
-	JSONDump       bool
-	Stdout         bool
-	BytesShown     int
-	Stats          bool
-	EventHandler   func(data []byte)
-	SyscallFilters []Syscall
-	CommFilters    []string
+	RawDump               bool
+	JSONDump              bool
+	Stdout                bool
+	BytesShown            int
+	Stats                 bool
+	EventHandler          func(data []byte)
+	hasCustomEventHandler bool
+	SyscallFilters        []Syscall
+	CommFilters           []string
 }
 
-func (o Options) ShouldActivateProbe() bool {
-	return o.JSONDump || o.RawDump || o.Stats || o.Stdout
+func (o Options) ShouldActivateProbes() bool {
+	return o.JSONDump || o.RawDump || o.Stats || o.Stdout || o.hasCustomEventHandler
 }
 
 func (o Options) SendEventsToUserSpace() bool {

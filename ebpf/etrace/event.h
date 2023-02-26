@@ -8,7 +8,7 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
 
-#define MAX_DATA_PER_SYSCALL 4608
+#define MAX_DATA_PER_SYSCALL 9216
 #define MAX_DATA_PER_ARG 1024
 
 struct syscall_event {

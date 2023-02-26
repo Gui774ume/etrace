@@ -24,8 +24,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gui774ume/etrace/internal/btf"
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/etrace/internal/btf"
 )
 
 var (
@@ -122,14 +123,14 @@ func (e *ETrace) prepareSyscallArgs() error {
 			syscallFuncProto.Arguments = append(syscallFuncProto.Arguments, arg)
 		}
 
-		e.syscallDefinitions[syscallFuncProto.NR] = syscallFuncProto
+		e.SyscallDefinitions[syscallFuncProto.NR] = syscallFuncProto
 	}
 	return nil
 }
 
 func (e *ETrace) pushSyscallDefinitions() error {
 	var err error
-	for nr, def := range e.syscallDefinitions {
+	for nr, def := range e.SyscallDefinitions {
 		if err = e.syscallDefinitionsMap.Put(nr, def); err != nil {
 			return err
 		}

@@ -34,13 +34,7 @@ import (
 	"github.com/Gui774ume/etrace/pkg/ringbuf"
 )
 
-var eventZero SyscallEvent
-
-func init() {
-	eventZero = SyscallEvent{
-		Args: SyscallArgumentsList{},
-	}
-}
+var eventZero = NewSyscallEvent()
 
 // ETrace is the main ETrace structure
 type ETrace struct {
@@ -59,7 +53,7 @@ type ETrace struct {
 	startTime      time.Time
 
 	kernelSpec            *btf.Spec
-	syscallDefinitions    map[Syscall]SyscallDefinition
+	SyscallDefinitions    map[Syscall]SyscallDefinition
 	syscallDefinitionsMap *ebpf.Map
 	eventsSyncMap         *ebpf.Map
 	eventsStatsMap        *ebpf.Map
@@ -87,11 +81,13 @@ func NewETrace(options Options) (*ETrace, error) {
 		wg:                 &sync.WaitGroup{},
 		options:            options,
 		handleEvent:        options.EventHandler,
-		syscallDefinitions: make(map[Syscall]SyscallDefinition),
-		event:              &SyscallEvent{},
+		SyscallDefinitions: make(map[Syscall]SyscallDefinition),
+		event:              NewSyscallEvent(),
 	}
 	if e.handleEvent == nil {
 		e.handleEvent = e.defaultEventHandler
+	} else {
+		e.options.hasCustomEventHandler = true
 	}
 
 	var pattern string
@@ -134,7 +130,7 @@ func NewETrace(options Options) (*ETrace, error) {
 
 // Start hooks on the requested symbols and begins tracing
 func (e *ETrace) Start() error {
-	if e.options.ShouldActivateProbe() {
+	if e.options.ShouldActivateProbes() {
 		if err := e.startManager(); err != nil {
 			return err
 		}
@@ -199,7 +195,7 @@ func (e *ETrace) ParseInputFile(inputFile string) (string, error) {
 
 // Stop shuts down ETrace
 func (e *ETrace) Stop() error {
-	if e.options.ShouldActivateProbe() {
+	if e.options.ShouldActivateProbes() {
 		if e.manager == nil {
 			// nothing to stop, return
 			return nil
@@ -214,7 +210,7 @@ func (e *ETrace) Stop() error {
 
 	e.cancelFunc()
 
-	if e.options.ShouldActivateProbe() {
+	if e.options.ShouldActivateProbes() {
 		if e.reader != nil {
 			_ = e.reader.Close()
 		}
@@ -314,7 +310,7 @@ func (e *ETrace) pushFilters() error {
 }
 
 func (e *ETrace) zeroEvent() *SyscallEvent {
-	*e.event = eventZero
+	*e.event = *eventZero
 	return e.event
 }
 
@@ -369,11 +365,11 @@ func (e *ETrace) ParseData(data []byte, event *SyscallEvent) error {
 	}
 
 	// resolve arguments definition
-	syscallDefinition, ok := e.syscallDefinitions[event.Syscall]
+	syscallDefinition, ok := e.SyscallDefinitions[event.Syscall]
 	if ok {
 		for i := range syscallDefinition.Arguments {
 			event.Args[i] = SyscallArgumentValue{
-				argument: &syscallDefinition.Arguments[i],
+				Argument: &syscallDefinition.Arguments[i],
 			}
 		}
 	} else {
@@ -381,7 +377,7 @@ func (e *ETrace) ParseData(data []byte, event *SyscallEvent) error {
 	}
 
 	// unmarshal
-	err = event.unmarshalBinary(data, read, e)
+	err = event.UnmarshalBinary(data, read, e)
 	if err != nil {
 		return fmt.Errorf("failed to decode event: %w", err)
 	}

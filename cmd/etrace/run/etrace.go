@@ -56,7 +56,7 @@ func etraceCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	// start ETrace
-	if options.ETraceOptions.ShouldActivateProbe() {
+	if options.ETraceOptions.ShouldActivateProbes() {
 		if err := trace.Start(); err != nil {
 			return errors.Wrap(err, "couldn't start")
 		}
@@ -66,6 +66,7 @@ func etraceCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		wait()
+		_ = trace.Stop()
 
 	} else if len(options.InputFile) > 0 {
 		logrus.Infof("Parsing %s ...", options.InputFile)
@@ -77,7 +78,6 @@ func etraceCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	_ = trace.Stop()
 	return nil
 }
 

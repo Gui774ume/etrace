@@ -1,6 +1,6 @@
 .DS_Store
 .idea/
-bin/
+/bin/
 vendor/
 graphs/
 TODO

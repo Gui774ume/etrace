@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
-	"github.com/Gui774ume/etrace/pkg/assets"
+	"github.com/Gui774ume/etrace/ebpf/assets"
 	"github.com/Gui774ume/etrace/pkg/ringbuf"
 )
 
@@ -134,17 +134,11 @@ func (e *ETrace) selectMaps() error {
 }
 
 func (e *ETrace) startManager() error {
-	// fetch ebpf assets
-	buf, err := assets.Asset("/probe.o")
-	if err != nil {
-		return errors.Wrap(err, "couldn't find asset")
-	}
-
 	// setup a default manager
 	e.prepareManager()
 
 	// initialize the manager
-	if err := e.manager.InitWithOptions(bytes.NewReader(buf), e.managerOptions); err != nil {
+	if err := e.manager.InitWithOptions(bytes.NewReader(assets.Probe), e.managerOptions); err != nil {
 		return errors.Wrap(err, "couldn't init manager")
 	}
 
