@@ -98,4 +98,57 @@ __attribute__((always_inline)) int fill_process_context(struct process_context *
     return 0;
 }
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 8192);
+} traced_pids SEC(".maps");
+
+struct sched_process_fork_args
+{
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+
+    char parent_comm[16];
+    pid_t parent_pid;
+    char child_comm[16];
+    pid_t child_pid;
+};
+
+/*
+ * tracepoint__sched__sched_process_fork is used to track child processes and inherit tracing state
+ */
+SEC("tracepoint/sched/sched_process_fork")
+int tracepoint__sched__sched_process_fork(struct sched_process_fork_args *ctx)
+{
+    u32 key = bpf_get_current_pid_tgid();
+    u32 child_pid = (u32) ctx->child_pid;
+
+    // check if the parent process is traced
+    u32 *is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+    if (!is_traced) {
+        key = bpf_get_current_pid_tgid() >> 32;
+        is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+        if (!is_traced) {
+            // the parent isn't traced
+            return 0;
+        }
+    }
+
+    // inherit traced state
+    bpf_map_update_elem(&traced_pids, &child_pid, &child_pid, BPF_ANY);
+    return 0;
+}
+
+SEC("kprobe/do_exit")
+int kprobe_do_exit(struct pt_regs *ctx) {
+    u32 tid = bpf_get_current_pid_tgid();
+    // delete traced pids entry
+    bpf_map_delete_elem(&traced_pids, &tid);
+    return 0;
+}
+
 #endif

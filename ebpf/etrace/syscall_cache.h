@@ -22,13 +22,30 @@ struct {
 	__uint(max_entries, 512);
 } comm_filters SEC(".maps");
 
-__attribute__((always_inline)) int is_syscall_ignored(u32 nr) {
+__attribute__((always_inline)) int is_syscall_type_ignored(u32 nr) {
     // check if syscalls are filtered
     if (load_syscall_filter() == 1) {
         u32 *filter = bpf_map_lookup_elem(&syscall_filters, &nr);
         if (filter == 0 || (filter != 0 && *filter != 1)) {
             // filter out syscall
             return 1;
+        }
+    }
+    return 0;
+}
+
+__attribute__((always_inline)) int is_syscall_ignored(u32 nr) {
+    // check if the pid is traced
+    if (load_follow_children() == 1) {
+        u32 key = bpf_get_current_pid_tgid();
+        u32 *is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+        if (is_traced) {
+            return is_syscall_type_ignored(nr);
+        }
+        key = bpf_get_current_pid_tgid() >> 32;
+        is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+        if (is_traced) {
+            return is_syscall_type_ignored(nr);
         }
     }
 
@@ -42,7 +59,13 @@ __attribute__((always_inline)) int is_syscall_ignored(u32 nr) {
             return 1;
         }
     }
-    return 0;
+
+    // register this process as traced
+    u32 key = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&traced_pids, &key, &key, BPF_ANY);
+    key = bpf_get_current_pid_tgid() >> 32;
+    bpf_map_update_elem(&traced_pids, &key, &key, BPF_ANY);
+    return is_syscall_type_ignored(nr);
 }
 
 struct syscall_cache {

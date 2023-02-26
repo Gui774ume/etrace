@@ -30,4 +30,10 @@ __attribute__((always_inline)) static u64 load_comm_filter() {
     return comm_filter;
 }
 
+__attribute__((always_inline)) static u64 load_follow_children() {
+    u64 follow_children = 0;
+    LOAD_CONSTANT("follow_children", follow_children);
+    return follow_children;
+}
+
 #endif

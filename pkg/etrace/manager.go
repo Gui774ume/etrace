@@ -48,6 +48,18 @@ func (e *ETrace) prepareManager() {
 			},
 			{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFSection:  "tracepoint/sched/sched_process_fork",
+					EBPFFuncName: "tracepoint__sched__sched_process_fork",
+				},
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFSection:  "kprobe/do_exit",
+					EBPFFuncName: "kprobe_do_exit",
+				},
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					EBPFSection:  "kprobe/security_bprm_check",
 					EBPFFuncName: "kprobe_security_bprm_check",
 				},
@@ -95,6 +107,12 @@ func (e *ETrace) prepareManager() {
 	if len(e.options.CommFilters) > 0 {
 		e.managerOptions.ConstantEditors = append(e.managerOptions.ConstantEditors, manager.ConstantEditor{
 			Name:  "comm_filter",
+			Value: uint64(1),
+		})
+	}
+	if e.options.Follow {
+		e.managerOptions.ConstantEditors = append(e.managerOptions.ConstantEditors, manager.ConstantEditor{
+			Name:  "follow_children",
 			Value: uint64(1),
 		})
 	}

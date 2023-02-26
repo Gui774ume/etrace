@@ -59,6 +59,11 @@ func init() {
 		"stats",
 		true,
 		"show syscall statistics")
+	Etrace.Flags().BoolVar(
+		&options.ETraceOptions.Follow,
+		"follow",
+		true,
+		"defines if etrace should trace the children of the processes that match the provided comm (works only for newly created children)")
 	Etrace.Flags().StringArrayVarP(
 		&options.ETraceOptions.CommFilters,
 		"comm",
