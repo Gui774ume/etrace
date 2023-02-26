@@ -32,6 +32,20 @@ __attribute__((always_inline)) int is_syscall_ignored(u32 nr) {
         }
     }
 
+    // check if the pid is traced
+    if (load_follow_children() == 1) {
+        u32 key = bpf_get_current_pid_tgid();
+        u32 *is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+        if (is_traced) {
+            return 0;
+        }
+        key = bpf_get_current_pid_tgid() >> 32;
+        is_traced = bpf_map_lookup_elem(&traced_pids, &key);
+        if (is_traced) {
+            return 0;
+        }
+    }
+
     // check if comms are filtered
     if (load_comm_filter() == 1) {
         char comm[TASK_COMM_LEN] = {};
@@ -42,6 +56,12 @@ __attribute__((always_inline)) int is_syscall_ignored(u32 nr) {
             return 1;
         }
     }
+
+    // register this process as traced
+    u32 key = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&traced_pids, &key, &key, BPF_ANY);
+    key = bpf_get_current_pid_tgid() >> 32;
+    bpf_map_update_elem(&traced_pids, &key, &key, BPF_ANY);
     return 0;
 }
 

@@ -36,6 +36,7 @@ type Options struct {
 	hasCustomEventHandler bool
 	SyscallFilters        []Syscall
 	CommFilters           []string
+	Follow                bool
 }
 
 func (o Options) ShouldActivateProbes() bool {
